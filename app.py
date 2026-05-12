@@ -28,17 +28,21 @@ df = pd.read_csv("WA_Fn-UseC_-HR-Employee-Attrition.csv")
 # ---------------------------------------------------
 # ENCODE CATEGORICAL COLUMNS
 # ---------------------------------------------------
-le = LabelEncoder()
+label_encoders = {}
 
-for col in df.columns:
-    if df[col].dtype == 'object':
-        df[col] = le.fit_transform(df[col])
+for col in df.select_dtypes(include='object').columns:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col].astype(str))
+    label_encoders[col] = le
 
 # ---------------------------------------------------
 # FEATURES AND TARGET
 # ---------------------------------------------------
 X = df.drop("Attrition", axis=1)
 y = df["Attrition"]
+
+# Ensure all features are numeric
+X = X.apply(pd.to_numeric)
 
 # ---------------------------------------------------
 # TRAIN TEST SPLIT
@@ -61,7 +65,7 @@ X_test = scaler.transform(X_test)
 # ---------------------------------------------------
 # MODEL TRAINING
 # ---------------------------------------------------
-model = LogisticRegression(max_iter=1000)
+model = LogisticRegression(max_iter=2000)
 
 model.fit(X_train, y_train)
 
@@ -132,26 +136,32 @@ if st.button("Predict Attrition"):
         'YearsAtCompany': [years_company]
     })
 
-    # Add missing columns
+    # Add all missing columns from training data
     for col in X.columns:
         if col not in input_data.columns:
             input_data[col] = 0
 
-    # Arrange columns
+    # Arrange columns in same order
     input_data = input_data[X.columns]
 
-    # Scaling
+    # Convert to numeric
+    input_data = input_data.apply(pd.to_numeric)
+
+    # Scale input
     input_scaled = scaler.transform(input_data)
 
     # Prediction
     prediction = model.predict(input_scaled)
 
-    # Probability
+    # Prediction probability
     probability = model.predict_proba(input_scaled)
 
+    # ---------------------------------------------------
+    # DISPLAY RESULT
+    # ---------------------------------------------------
     st.subheader("Prediction Result")
 
-    if prediction[0] == 0:
+    if prediction[0] == 1:
         st.error("Employee is likely to leave the company.")
     else:
         st.success("Employee is likely to stay in the company.")
